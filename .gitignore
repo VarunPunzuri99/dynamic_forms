@@ -1,0 +1,39 @@
+# Secrets / local env (never commit)
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / frontend build
+frontend/node_modules/
+frontend/dist/
+
+# Generated PDFs / caches
+output/
+output/csharp_pdf_cache/
+*.pdf.part
+
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Cursor / local agent
+.cursor/
+*.log

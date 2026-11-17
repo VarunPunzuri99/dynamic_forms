@@ -1,0 +1,127 @@
+{
+  "form_id": "fw4",
+  "edition": "2025",
+  "source_pdf": "docs/fw4--2025.pdf",
+  "questions": [
+    {
+      "id": "first_name",
+      "label": "Step 1(a). First name and middle initial",
+      "type": "text",
+      "required": true,
+      "max_length": 40,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].Step1a[0].f1_01[0]"
+    },
+    {
+      "id": "last_name",
+      "label": "Step 1(a). Last name",
+      "type": "text",
+      "required": true,
+      "max_length": 40,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].Step1a[0].f1_02[0]"
+    },
+    {
+      "id": "address",
+      "label": "Step 1. Address",
+      "type": "text",
+      "required": true,
+      "max_length": 60,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].Step1a[0].f1_03[0]"
+    },
+    {
+      "id": "city_state_zip",
+      "label": "Step 1. City or town, state, and ZIP code",
+      "type": "text",
+      "required": false,
+      "max_length": 60,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].Step1a[0].f1_04[0]"
+    },
+    {
+      "id": "filing_status",
+      "label": "Step 1(c). Filing status",
+      "type": "choice",
+      "required": true,
+      "status": "verified",
+      "options": [
+        {
+          "value": "single",
+          "label": "Single or Married filing separately",
+          "pdf_field": "topmostSubform[0].Page1[0].c1_1[0]",
+          "checked_value": "1"
+        },
+        {
+          "value": "married",
+          "label": "Married filing jointly or Qualifying surviving spouse",
+          "pdf_field": "topmostSubform[0].Page1[0].c1_1[1]",
+          "checked_value": "2"
+        },
+        {
+          "value": "head",
+          "label": "Head of household (Check only if you're unmarried and pay more than half the costs of keeping up a home for yourself and a qualifying individual.)",
+          "pdf_field": "topmostSubform[0].Page1[0].c1_1[2]",
+          "checked_value": "3"
+        }
+      ]
+    },
+    {
+      "id": "two_jobs_only",
+      "label": "Step 2(c). If there are only two jobs total, you may check this box. Do the same on Form W-4 for the other job. This option is generally more accurate than (b) if pay at the lower paying job is more than half of the pay at the higher paying job. Otherwise, (b) is more accurate.",
+      "type": "checkbox",
+      "required": false,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].c1_2[0]",
+      "checked_value": "1"
+    },
+    {
+      "id": "qualifying_children_amount",
+      "label": "Step 3. Multiply the number of qualifying children under age 17 by $2,000.",
+      "type": "number",
+      "required": false,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].Step3_ReadOrder[0].f1_06[0]"
+    },
+    {
+      "id": "other_dependents_amount",
+      "label": "Step 3. Multiply the number of other dependents by $500.",
+      "type": "number",
+      "required": false,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].Step3_ReadOrder[0].f1_07[0]"
+    },
+    {
+      "id": "step3_total",
+      "label": "Step 3. Add the amounts above for qualifying children and other dependents. You may add to this the amount of any other credits. Enter the total here.",
+      "type": "number",
+      "required": false,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].f1_09[0]"
+    },
+    {
+      "id": "other_income",
+      "label": "Step 4(a). Other income (not from jobs). If you want tax withheld for other income you expect this year that won't have withholding, enter the amount of other income here. This may include interest, dividends, and retirement income.",
+      "type": "number",
+      "required": false,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].f1_10[0]"
+    },
+    {
+      "id": "deductions",
+      "label": "Step 4(b). Deductions. If you expect to claim deductions other than the standard deduction and want to reduce your withholding, use the Deductions Worksheet on page 3 and enter the result here.",
+      "type": "number",
+      "required": false,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].f1_11[0]"
+    },
+    {
+      "id": "extra_withholding",
+      "label": "Step 4(c). Extra withholding. Enter any additional tax you want withheld each pay period.",
+      "type": "number",
+      "required": false,
+      "status": "verified",
+      "pdf_field": "topmostSubform[0].Page1[0].f1_12[0]"
+    }
+  ]
+}

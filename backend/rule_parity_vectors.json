@@ -1,0 +1,590 @@
+{
+  "description": "Shared frontend/backend conditional-rule parity vectors (Phase 3D). kinds: condition, effects, validate. normalize/planned are backend-only.",
+  "questions": [
+    { "id": "q1", "label": "One", "type": "text", "required": true },
+    { "id": "q2", "label": "Two", "type": "number", "required": false },
+    { "id": "q3", "label": "Three", "type": "number", "required": true },
+    { "id": "q4", "label": "Four", "type": "text", "required": false },
+    {
+      "id": "exempt",
+      "label": "Exempt",
+      "type": "checkbox",
+      "required": false,
+      "checked_value": "1",
+      "pdf_field": "c1"
+    },
+    {
+      "id": "status",
+      "label": "Status",
+      "type": "choice",
+      "required": false,
+      "options": [
+        { "value": "a", "label": "A", "pdf_field": "c_a", "checked_value": "1" },
+        { "value": "b", "label": "B", "pdf_field": "c_b", "checked_value": "2" }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "cond-answered-text",
+      "kind": "condition",
+      "question_id": "q1",
+      "condition": "answered",
+      "samples": [
+        { "value": null, "expect": false },
+        { "value": "", "expect": false },
+        { "value": "   ", "expect": false },
+        { "value": "x", "expect": true }
+      ]
+    },
+    {
+      "id": "cond-blank-text",
+      "kind": "condition",
+      "question_id": "q1",
+      "condition": "blank",
+      "samples": [
+        { "value": null, "expect": true },
+        { "value": "", "expect": true },
+        { "value": "   ", "expect": true },
+        { "value": "x", "expect": false }
+      ]
+    },
+    {
+      "id": "cond-answered-number-zero",
+      "kind": "condition",
+      "question_id": "q2",
+      "condition": "answered",
+      "samples": [
+        { "value": 0, "expect": true },
+        { "value": "0", "expect": true },
+        { "value": "", "expect": false },
+        { "value": null, "expect": false }
+      ]
+    },
+    {
+      "id": "cond-checked",
+      "kind": "condition",
+      "question_id": "exempt",
+      "condition": "checked",
+      "samples": [
+        { "value": true, "expect": true },
+        { "value": false, "expect": false },
+        { "value": null, "expect": false }
+      ]
+    },
+    {
+      "id": "cond-checked-on-text",
+      "kind": "condition",
+      "question_id": "q1",
+      "condition": "checked",
+      "samples": [{ "value": true, "expect": false }]
+    },
+    {
+      "id": "cond-equals-checkbox-checked-literals",
+      "kind": "condition",
+      "question_id": "exempt",
+      "condition": "equals",
+      "samples": [
+        { "value": true, "expected": true, "expect": true },
+        { "value": true, "expected": "true", "expect": true },
+        { "value": true, "expected": "TRUE", "expect": true },
+        { "value": true, "expected": "1", "expect": true },
+        { "value": true, "expected": "yes", "expect": true },
+        { "value": true, "expected": "YES", "expect": true },
+        { "value": false, "expected": "1", "expect": false }
+      ]
+    },
+    {
+      "id": "cond-equals-checkbox-unchecked-literals",
+      "kind": "condition",
+      "question_id": "exempt",
+      "condition": "equals",
+      "samples": [
+        { "value": false, "expected": "false", "expect": true },
+        { "value": false, "expected": "0", "expect": true },
+        { "value": false, "expected": "no", "expect": true },
+        { "value": false, "expected": "", "expect": true },
+        { "value": false, "expected": null, "expect": true },
+        { "value": true, "expected": "false", "expect": false }
+      ]
+    },
+    {
+      "id": "cond-equals-text",
+      "kind": "condition",
+      "question_id": "q1",
+      "condition": "equals",
+      "samples": [
+        { "value": "Hello", "expected": "Hello", "expect": true },
+        { "value": " Hello ", "expected": "Hello", "expect": true },
+        { "value": null, "expected": "Hello", "expect": false },
+        { "value": "Nope", "expected": "Hello", "expect": false }
+      ]
+    },
+    {
+      "id": "cond-equals-choice",
+      "kind": "condition",
+      "question_id": "status",
+      "condition": "equals",
+      "samples": [
+        { "value": "a", "expected": "a", "expect": true },
+        { "value": "b", "expected": "a", "expect": false },
+        { "value": "", "expected": "a", "expect": false }
+      ]
+    },
+    {
+      "id": "cond-unknown",
+      "kind": "condition",
+      "question_id": "q1",
+      "condition": "not_a_real_condition",
+      "samples": [{ "value": "x", "expect": false }]
+    },
+    {
+      "id": "eff-disable",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q2",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q3",
+          "then_effect": "disable"
+        }
+      ],
+      "answers": { "q1": "A", "q2": "10", "q3": "5", "q4": "B", "exempt": false, "status": "" },
+      "expect_effects": {
+        "q2": { "disabled": false, "required": false },
+        "q3": { "disabled": true, "required": false }
+      }
+    },
+    {
+      "id": "eff-optional",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "exempt",
+          "when_condition": "checked",
+          "when_value": null,
+          "then_question": "q1",
+          "then_effect": "optional"
+        }
+      ],
+      "answers": { "q1": "", "q2": "", "q3": "", "q4": "", "exempt": true, "status": "" },
+      "expect_effects": { "q1": { "disabled": false, "required": false } }
+    },
+    {
+      "id": "eff-required",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "exempt",
+          "when_condition": "checked",
+          "when_value": null,
+          "then_question": "q4",
+          "then_effect": "required"
+        }
+      ],
+      "answers": { "q1": "A", "q2": "", "q3": "1", "q4": "", "exempt": true, "status": "" },
+      "expect_effects": { "q4": { "disabled": false, "required": true } }
+    },
+    {
+      "id": "eff-default-required-untouched",
+      "kind": "effects",
+      "rules": [],
+      "answers": { "q1": "", "q2": "", "q3": "", "q4": "", "exempt": false, "status": "" },
+      "expect_effects": {
+        "q1": { "disabled": false, "required": true },
+        "q2": { "disabled": false, "required": false },
+        "q3": { "disabled": false, "required": true },
+        "q4": { "disabled": false, "required": false }
+      }
+    },
+    {
+      "id": "eff-disable-beats-required",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q3",
+          "then_effect": "disable"
+        },
+        {
+          "id": "r2",
+          "when_question": "q2",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q3",
+          "then_effect": "required"
+        }
+      ],
+      "answers": { "q1": "A", "q2": "10", "q3": "5", "q4": "", "exempt": false, "status": "" },
+      "expect_effects": { "q3": { "disabled": true, "required": false } }
+    },
+    {
+      "id": "eff-disable-beats-optional",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q3",
+          "then_effect": "disable"
+        },
+        {
+          "id": "r2",
+          "when_question": "q2",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q3",
+          "then_effect": "optional"
+        }
+      ],
+      "answers": { "q1": "A", "q2": "10", "q3": "5", "q4": "", "exempt": false, "status": "" },
+      "expect_effects": { "q3": { "disabled": true, "required": false } }
+    },
+    {
+      "id": "eff-required-beats-optional",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q4",
+          "then_effect": "required"
+        },
+        {
+          "id": "r2",
+          "when_question": "q2",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q4",
+          "then_effect": "optional"
+        }
+      ],
+      "answers": { "q1": "A", "q2": "10", "q3": "1", "q4": "", "exempt": false, "status": "" },
+      "expect_effects": { "q4": { "disabled": false, "required": true } }
+    },
+    {
+      "id": "eff-linear-disable-chain",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q2",
+          "then_effect": "disable"
+        },
+        {
+          "id": "r2",
+          "when_question": "q2",
+          "when_condition": "blank",
+          "when_value": null,
+          "then_question": "q3",
+          "then_effect": "disable"
+        }
+      ],
+      "answers": { "q1": "A", "q2": "10", "q3": "5", "q4": "", "exempt": false, "status": "" },
+      "expect_effects": {
+        "q2": { "disabled": true, "required": false },
+        "q3": { "disabled": true, "required": false }
+      }
+    },
+    {
+      "id": "eff-branch-disable",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q2",
+          "then_effect": "disable"
+        },
+        {
+          "id": "r2",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q3",
+          "then_effect": "disable"
+        }
+      ],
+      "answers": { "q1": "A", "q2": "10", "q3": "5", "q4": "", "exempt": false, "status": "" },
+      "expect_effects": {
+        "q2": { "disabled": true, "required": false },
+        "q3": { "disabled": true, "required": false },
+        "q4": { "disabled": false, "required": false }
+      }
+    },
+    {
+      "id": "eff-equals-one-disable",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "exempt",
+          "when_condition": "equals",
+          "when_value": "1",
+          "then_question": "q3",
+          "then_effect": "disable"
+        }
+      ],
+      "answers": { "q1": "A", "q2": "", "q3": "5", "q4": "", "exempt": true, "status": "" },
+      "expect_effects": { "q3": { "disabled": true, "required": false } }
+    },
+    {
+      "id": "eff-disable-cycle-runtime-converges",
+      "kind": "effects",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q2",
+          "then_effect": "disable"
+        },
+        {
+          "id": "r2",
+          "when_question": "q2",
+          "when_condition": "answered",
+          "when_value": null,
+          "then_question": "q1",
+          "then_effect": "disable"
+        }
+      ],
+      "answers": { "q1": "A", "q2": "10", "q3": "5", "q4": "", "exempt": false, "status": "" },
+      "expect_effects": {
+        "q1": { "disabled": false, "required": true },
+        "q2": { "disabled": false, "required": false }
+      },
+      "note": "Save rejects disable cycles (Phase 3C). If such rules were evaluated anyway, both engines converge to enabled."
+    },
+    {
+      "id": "val-linear-ok",
+      "kind": "validate",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "then_question": "q2",
+          "then_effect": "disable"
+        },
+        {
+          "id": "r2",
+          "when_question": "q2",
+          "when_condition": "blank",
+          "then_question": "q3",
+          "then_effect": "disable"
+        }
+      ],
+      "expect_valid": true
+    },
+    {
+      "id": "val-branch-ok",
+      "kind": "validate",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "then_question": "q2",
+          "then_effect": "disable"
+        },
+        {
+          "id": "r2",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "then_question": "q3",
+          "then_effect": "disable"
+        }
+      ],
+      "expect_valid": true
+    },
+    {
+      "id": "val-required-optional-cycle-ok",
+      "kind": "validate",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "then_question": "q2",
+          "then_effect": "required"
+        },
+        {
+          "id": "r2",
+          "when_question": "q2",
+          "when_condition": "answered",
+          "then_question": "q1",
+          "then_effect": "optional"
+        }
+      ],
+      "expect_valid": true
+    },
+    {
+      "id": "val-disable-cycle-reject",
+      "kind": "validate",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "then_question": "q2",
+          "then_effect": "disable"
+        },
+        {
+          "id": "r2",
+          "when_question": "q2",
+          "when_condition": "answered",
+          "then_question": "q1",
+          "then_effect": "disable"
+        }
+      ],
+      "expect_valid": false
+    },
+    {
+      "id": "val-self-target-reject",
+      "kind": "validate",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "then_question": "q1",
+          "then_effect": "disable"
+        }
+      ],
+      "expect_valid": false
+    },
+    {
+      "id": "val-missing-question-reject",
+      "kind": "validate",
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "q1",
+          "when_condition": "answered",
+          "then_question": "missing",
+          "then_effect": "disable"
+        }
+      ],
+      "expect_valid": false
+    },
+    {
+      "id": "iso-fw4-rules-do-not-affect-colorado-ids",
+      "kind": "effects",
+      "questions_override": [
+        { "id": "Last Name", "label": "Last Name", "type": "text", "required": true },
+        { "id": "First Name", "label": "First Name", "type": "text", "required": true }
+      ],
+      "rules": [
+        {
+          "id": "r1",
+          "when_question": "exempt",
+          "when_condition": "checked",
+          "when_value": null,
+          "then_question": "q3",
+          "then_effect": "disable"
+        }
+      ],
+      "answers": { "Last Name": "Doe", "First Name": "Jane" },
+      "expect_effects": {
+        "Last Name": { "disabled": false, "required": true },
+        "First Name": { "disabled": false, "required": true }
+      },
+      "note": "fw4-oriented rules referencing absent ids are skipped; colorado-like questions stay default."
+    },
+    {
+      "id": "norm-disabled-skips-required",
+      "kind": "normalize",
+      "definition": {
+        "form_id": "demo",
+        "edition": "2026",
+        "source_pdf": "docs/fw4_2026.pdf",
+        "questions": [
+          {
+            "id": "q2",
+            "label": "Two",
+            "type": "number",
+            "required": false,
+            "pdf_field": "f2"
+          },
+          {
+            "id": "q3",
+            "label": "Three",
+            "type": "number",
+            "required": true,
+            "pdf_field": "f3"
+          }
+        ],
+        "rules": [
+          {
+            "id": "r1",
+            "when_question": "q2",
+            "when_condition": "answered",
+            "when_value": null,
+            "then_question": "q3",
+            "then_effect": "disable"
+          }
+        ]
+      },
+      "answers": { "q2": "25", "q3": "99" },
+      "expect_normalized": { "q2": "25", "q3": null },
+      "expect_planned_absent": ["f3"],
+      "expect_planned": { "f2": "25" }
+    },
+    {
+      "id": "norm-disabled-checkbox-off",
+      "kind": "normalize",
+      "definition": {
+        "form_id": "demo",
+        "edition": "2026",
+        "source_pdf": "docs/fw4_2026.pdf",
+        "questions": [
+          {
+            "id": "gate",
+            "label": "Gate",
+            "type": "text",
+            "required": false,
+            "pdf_field": "g1"
+          },
+          {
+            "id": "flag",
+            "label": "Flag",
+            "type": "checkbox",
+            "required": false,
+            "checked_value": "1",
+            "pdf_field": "c1"
+          }
+        ],
+        "rules": [
+          {
+            "id": "r1",
+            "when_question": "gate",
+            "when_condition": "answered",
+            "when_value": null,
+            "then_question": "flag",
+            "then_effect": "disable"
+          }
+        ]
+      },
+      "answers": { "gate": "x", "flag": true },
+      "expect_normalized": { "gate": "x", "flag": false },
+      "expect_planned": { "g1": "x", "c1": "Off" }
+    }
+  ]
+}

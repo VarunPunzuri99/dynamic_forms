@@ -1,0 +1,15 @@
+{
+  "first_name": "Test",
+  "last_name": "Employee",
+  "address": "100 Main Street",
+  "city_state_zip": "Austin TX 78701",
+  "filing_status": "single",
+  "two_jobs_only": false,
+  "qualifying_children_amount": "2200",
+  "other_dependents_amount": "500",
+  "step3_total": "2700",
+  "other_income": "500",
+  "deductions": "1000",
+  "extra_withholding": "25",
+  "exempt_from_withholding": true
+}
