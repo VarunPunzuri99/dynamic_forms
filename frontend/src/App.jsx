@@ -102,7 +102,7 @@ export default function App() {
               {forms.length === 0 ? <option value={formId}>{formId}</option> : null}
               {forms.map((form) => (
                 <option key={form.form_id} value={form.form_id}>
-                  {form.form_id}
+                  {form.display_name || form.form_id}
                   {form.live ? ` · ${form.live.edition} · ${form.live.question_count} questions` : ""}
                 </option>
               ))}

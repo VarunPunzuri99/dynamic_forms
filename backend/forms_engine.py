@@ -178,14 +178,38 @@ def _map_csharp_error(exc: CsharpApiError, *, not_found_message: str | None = No
     return FormsEngineError(exc.message or "The C# FormsEngine API request failed", 502)
 
 
-def list_forms() -> list[dict]:
+def _normalize_listed_form(raw: dict) -> dict:
+    """Normalize C# GET /api/forms-engine/forms item → Python picker shape."""
+    form_id = str(_pick(raw, "formId", "form_id", default="") or "")
+    display_name = _pick(raw, "displayName", "display_name", default=None)
+    live_id = _pick(raw, "liveEditionId", "live_edition_id", default=None)
+    live_edition = _pick(raw, "liveEdition", "live_edition", default=None)
+    approved = _pick(raw, "liveApprovedCount", "live_approved_count", default=None)
+    questions = _pick(raw, "liveQuestionCount", "live_question_count", default=0)
+    live = None
+    if live_id is not None:
+        live = {
+            "id": int(live_id),
+            "edition": str(live_edition or ""),
+            "storage_path": _pick(raw, "storagePath", "storage_path", default=None),
+            "question_count": int(approved if approved is not None else (questions or 0)),
+        }
+    return {
+        "form_id": form_id,
+        "display_name": str(display_name or form_id),
+        "live": live,
+    }
+
+
+def _list_forms_via_editions_fallback() -> list[dict]:
+    """Legacy path: seed form ids from env, then load each editions pack."""
     forms: list[dict] = []
     for form_id in configured_form_ids():
         try:
             pack = csharp_client.get_editions(form_id)
         except CsharpApiError as exc:
             if exc.status_code == 404:
-                forms.append({"form_id": form_id, "live": None})
+                forms.append({"form_id": form_id, "display_name": form_id, "live": None})
                 continue
             raise _map_csharp_error(exc) from exc
         editions = [normalize_edition_summary(item) for item in (pack.get("editions") or [])]
@@ -205,7 +229,28 @@ def list_forms() -> list[dict]:
                 "storage_path": row["storage_path"],
                 "question_count": row["approved_count"] or row["question_count"],
             }
-        forms.append({"form_id": form_id, "live": live})
+        forms.append({"form_id": form_id, "display_name": form_id, "live": live})
+    return forms
+
+
+def list_forms() -> list[dict]:
+    """Discover forms from C# list API; fall back to FORMS_ENGINE_FORM_IDS if needed."""
+    try:
+        pack = csharp_client.list_forms()
+    except CsharpApiError as exc:
+        if exc.status_code in {404, 501, 502, 503}:
+            return _list_forms_via_editions_fallback()
+        raise _map_csharp_error(exc) from exc
+
+    raw_forms = pack.get("forms") if isinstance(pack, dict) else None
+    if not isinstance(raw_forms, list):
+        return _list_forms_via_editions_fallback()
+
+    forms = [_normalize_listed_form(item) for item in raw_forms if isinstance(item, dict)]
+    forms = [row for row in forms if row.get("form_id")]
+    if not forms:
+        return _list_forms_via_editions_fallback()
+    forms.sort(key=lambda row: str(row.get("form_id") or ""))
     return forms
 
 

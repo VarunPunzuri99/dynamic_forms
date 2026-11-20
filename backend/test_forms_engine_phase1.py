@@ -21,6 +21,7 @@ from backend.forms_engine import (
     uses_csharp,
 )
 from backend import csharp_client
+from backend.csharp_client import CsharpApiError
 
 
 class NormalizationTests(unittest.TestCase):
@@ -64,6 +65,51 @@ class NormalizationTests(unittest.TestCase):
         self.assertEqual(item["id"], "first_name")
         self.assertEqual(item["type"], "text")
         self.assertEqual(item["pdf_field"], "f1_01[0]")
+
+    def test_list_forms_uses_csharp_discovery_api(self) -> None:
+        payload = {
+            "forms": [
+                {
+                    "formId": "colorado",
+                    "displayName": "Colorado",
+                    "liveEditionId": 3,
+                    "liveEdition": "2025",
+                    "liveQuestionCount": 7,
+                    "liveApprovedCount": 7,
+                },
+                {
+                    "formId": "fw4",
+                    "displayName": "Federal Form W-4",
+                    "liveEditionId": 2,
+                    "liveEdition": "2026",
+                    "liveQuestionCount": 15,
+                    "liveApprovedCount": 15,
+                },
+            ]
+        }
+        with mock.patch.object(csharp_client, "list_forms", return_value=payload):
+            forms = list_forms()
+        by_id = {item["form_id"]: item for item in forms}
+        self.assertEqual(list(by_id), ["colorado", "fw4"])
+        self.assertEqual(by_id["fw4"]["display_name"], "Federal Form W-4")
+        self.assertEqual(by_id["fw4"]["live"]["id"], 2)
+        self.assertEqual(by_id["fw4"]["live"]["edition"], "2026")
+        self.assertEqual(by_id["fw4"]["live"]["question_count"], 15)
+        self.assertEqual(by_id["colorado"]["live"]["id"], 3)
+
+    def test_list_forms_falls_back_when_discovery_missing(self) -> None:
+        with mock.patch.object(
+            csharp_client,
+            "list_forms",
+            side_effect=CsharpApiError("not found", 404),
+        ):
+            with mock.patch(
+                "backend.forms_engine._list_forms_via_editions_fallback",
+                return_value=[{"form_id": "fw4", "display_name": "fw4", "live": None}],
+            ) as fallback:
+                forms = list_forms()
+        fallback.assert_called_once()
+        self.assertEqual(forms[0]["form_id"], "fw4")
 
 
 @unittest.skipUnless(

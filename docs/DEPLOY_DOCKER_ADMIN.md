@@ -73,10 +73,12 @@ CORS_ORIGINS=http://10.147.219.75:3001,http://localhost:3001,http://127.0.0.1:30
 FORMS_ENGINE_SOURCE=csharp
 CSHARP_API_BASE_URL=https://YOUR-APIM-HOST/empselser
 OCP_APIM_SUBSCRIPTION_KEY=YOUR_REAL_KEY
+# Optional: only if list-forms API is down
 FORMS_ENGINE_FORM_IDS=fw4,colorado
 ```
 
-No `DATABASE_URL` and no Postgres container — form data is 100% C# SQL.
+No `DATABASE_URL` and no Postgres container — form data is 100% C# SQL.  
+Form picker uses C# `GET /api/forms-engine/forms` (not the env seed) when that API is available.
 
 Replace `10.147.219.75` if the admin PC LAN IP changed (`ip addr` / `ipconfig`).
 

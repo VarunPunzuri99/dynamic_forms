@@ -89,7 +89,7 @@ Production (planned)
 | `FORMS_ENGINE_SOURCE` | `csharp` (when configured) or `postgres` |
 | `CSHARP_API_BASE_URL` | Azure APIM base |
 | `OCP_APIM_SUBSCRIPTION_KEY` | APIM subscription key |
-| `FORMS_ENGINE_FORM_IDS` | Comma list, default `fw4,colorado` |
+| `FORMS_ENGINE_FORM_IDS` | Fallback seed if C# `GET /api/forms-engine/forms` is unavailable (default `fw4,colorado`) |
 | `PYTHON_FILL_API_KEY` | Optional; required for non-local `/internal/fill` |
 | `DATABASE_URL` | Postgres (startup bootstrap / Phase 4 tests; still required to boot today) |
 

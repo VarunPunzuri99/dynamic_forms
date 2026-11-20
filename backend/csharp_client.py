@@ -83,6 +83,14 @@ def _raise_for_response(response: httpx.Response) -> None:
     raise CsharpApiError(message, response.status_code, body)
 
 
+def list_forms() -> dict:
+    """GET /api/forms-engine/forms — discover all forms + live edition summary."""
+    with _client() as client:
+        response = client.get("/api/forms-engine/forms")
+        _raise_for_response(response)
+        return response.json()
+
+
 def get_editions(form_id: str) -> dict:
     with _client() as client:
         response = client.get(f"/api/forms-engine/forms/{form_id}/editions")
