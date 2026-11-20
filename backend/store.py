@@ -70,7 +70,14 @@ _MULTIPLE_LIVE_EDITIONS_MESSAGE = (
 
 def connect() -> psycopg.Connection:
     load_env()
-    return psycopg.connect(os.environ["DATABASE_URL"], row_factory=dict_row)
+    database_url = (os.environ.get("DATABASE_URL") or "").strip()
+    if not database_url:
+        raise ReviewError(
+            "DATABASE_URL is not configured. Local Postgres is only required when "
+            "FORMS_ENGINE_SOURCE=postgres. For C# mode, set FORMS_ENGINE_SOURCE=csharp.",
+            500,
+        )
+    return psycopg.connect(database_url, row_factory=dict_row)
 
 
 def _lock_form_for_publish(cursor, form_id: str) -> None:
@@ -103,6 +110,10 @@ def _require_single_live_approved(rows: list, form_id: str) -> dict:
 
 
 def ensure_ready() -> None:
+    """Boot hook. C# mode skips Postgres entirely (SQL Server is the store)."""
+    load_env()
+    if uses_csharp():
+        return
     with connect() as connection:
         ensure_schema(connection)
         _seed_edition(connection, "2025", review_status="approved", change_type="reviewed")

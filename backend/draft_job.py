@@ -50,17 +50,19 @@ CREATE TABLE IF NOT EXISTS form_questions (
 
 
 def load_env() -> None:
+    """Load repo-root .env if present. Docker can inject vars without a file.
+
+    DATABASE_URL is optional when FormsEngine source is C# (SQL Server via APIM).
+    It is still required for local postgres mode / Phase 4 tests.
+    """
     env_path = ROOT / ".env"
-    if not env_path.is_file():
-        raise SystemExit("Missing .env file with DATABASE_URL")
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
-    if not os.environ.get("DATABASE_URL"):
-        raise SystemExit("DATABASE_URL is missing from .env")
+    if env_path.is_file():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
 def widgets(path: Path) -> list[dict]:

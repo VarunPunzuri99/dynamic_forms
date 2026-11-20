@@ -62,11 +62,24 @@ try:
 except (OSError, json.JSONDecodeError, DefinitionError) as exc:
     raise RuntimeError(f"W-4 question file cannot be loaded: {exc}") from exc
 
-app = FastAPI(title="W-4 preview")
+def _cors_origins() -> list[str]:
+    load_env()
+    raw = (os.environ.get("CORS_ORIGINS") or "").strip()
+    if raw:
+        return [part.strip() for part in raw.split(",") if part.strip()]
+    return [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:3001",
+        "http://localhost:3001",
+    ]
+
+
+app = FastAPI(title="Forms Studio")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
-    allow_methods=["GET", "POST"],
+    allow_origins=_cors_origins(),
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["*"],
 )
 

@@ -1,0 +1,40 @@
+# Forms POC — runs beside TrackPro without port clashes.
+# TrackPro uses: 3000 (UI), 8000 (API), 5432/5433 (Postgres)
+# Forms POC uses: 3001 (UI), 8001 (API)
+#
+# C# mode (default): NO Postgres. Form data lives in C# SQL Server via APIM.
+# Python FastAPI is the fill/rules engine for C# / internal LAN use.
+#
+# Usage (WSL on admin PC):
+#   cd ~/forms_poc
+#   cp .env.docker.example .env
+#   nano .env
+#   docker compose up -d --build
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: forms-backend
+    env_file:
+      - .env
+    ports:
+      - "8001:8000"
+    volumes:
+      - forms_output:/app/output
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: forms-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  forms_output:

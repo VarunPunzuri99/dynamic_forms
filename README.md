@@ -166,6 +166,26 @@ npm run dev
 
 Open **http://localhost:5173/** — Vite proxies `/api` → `http://127.0.0.1:8000` (not `/internal`; call fill host directly for C# tests).
 
+### Docker Compose (org admin PC / WSL)
+
+Same pattern as TrackPro, **different ports** so both can run:
+
+| Service | Port |
+|---|---|
+| Forms UI | **3001** |
+| Forms API | **8001** |
+
+No Postgres container — csharp mode uses C# SQL Server only.
+
+See **`docs/DEPLOY_DOCKER_ADMIN.md`** for full WSL steps (`~/forms_poc`, `.env`, `docker compose up -d --build`). Quick start:
+
+```bash
+cp .env.docker.example .env   # edit APIM key + CORS_ORIGINS
+docker compose up -d --build
+```
+
+UI: `http://<ADMIN_LAN_IP>:3001` · API: `http://<ADMIN_LAN_IP>:8001/api/health`
+
 ### Quick checks
 
 ```powershell

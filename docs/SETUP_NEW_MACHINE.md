@@ -170,3 +170,5 @@ They are listed in `.gitignore`.
 - Azure C# **cannot** call your laptop `127.0.0.1`. Public/tunnel Python URL is needed for that smoke test.
 
 More detail: root `README.md`.
+
+For **org admin PC Docker Compose** (beside TrackPro): see `docs/DEPLOY_DOCKER_ADMIN.md`.
