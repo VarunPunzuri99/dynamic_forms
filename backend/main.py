@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import os
@@ -430,7 +431,11 @@ def import_fields(form_id: str):
 
 @app.post("/api/forms/{form_id}/editions/{edition_id}/import-fields")
 async def import_edition_fields(form_id: str, edition_id: int, request: Request):
-    """Studio → C# import-fields (C# calls Python /internal/extract). Works on draft editions."""
+    """Studio → C# import-fields (C# calls Python /internal/extract). Works on draft editions.
+
+    Outbound C# call is sync httpx; run in a thread so this process can still serve
+    C#'s callback to POST /internal/extract (avoids single-worker deadlock → 504).
+    """
     replace = False
     try:
         body = await request.json()
@@ -439,7 +444,12 @@ async def import_edition_fields(form_id: str, edition_id: int, request: Request)
     except Exception:
         replace = False
     try:
-        return csharp_client.import_edition_fields(form_id, edition_id, replace=replace)
+        return await asyncio.to_thread(
+            csharp_client.import_edition_fields,
+            form_id,
+            edition_id,
+            replace=replace,
+        )
     except CsharpApiError as exc:
         return JSONResponse(
             status_code=exc.status_code or 502,
