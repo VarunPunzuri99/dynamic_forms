@@ -286,8 +286,8 @@ export default function FormWorkspace({ formId }) {
           <h2>Editions / years</h2>
           <p className="panel-sub">Import fields on a draft, then publish when ready</p>
         </div>
-        <form className="upload-edition-form" onSubmit={addYear}>
-          <div className="upload-edition-fields">
+        <form className="upload-edition-form upload-edition-form-compact" onSubmit={addYear}>
+          <div className="upload-edition-fields upload-edition-fields-year">
             <label>
               New edition / year
               <input

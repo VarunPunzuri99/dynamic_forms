@@ -1905,24 +1905,42 @@ iframe {
   padding-right: 6px;
 }
 
+.upload-edition-panel {
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.upload-edition-panel > .panel-head {
+  margin: 0;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.upload-edition-panel > .panel-head h2 {
+  margin: 0 0 4px;
+  font-size: 1.02rem;
+}
+
 .upload-edition-form {
   display: grid;
-  gap: 12px;
-  padding: 14px 16px 16px;
+  gap: 16px;
+  padding: 18px 20px 20px;
 }
 
 .upload-edition-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: minmax(160px, 220px) minmax(120px, 160px) minmax(220px, 1fr);
+  gap: 14px 16px;
   align-items: end;
+  max-width: 760px;
 }
 
 .upload-edition-fields label {
   display: grid;
-  gap: 6px;
-  font-size: 0.78rem;
+  gap: 8px;
+  font-size: 0.8rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--ink-soft);
 }
 
@@ -1930,7 +1948,8 @@ iframe {
 .upload-edition-fields input[type="file"] {
   width: 100%;
   min-width: 0;
-  padding: 9px 11px;
+  box-sizing: border-box;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
@@ -1940,14 +1959,35 @@ iframe {
 }
 
 .upload-edition-fields input[type="file"] {
-  padding: 8px;
+  padding: 9px 10px;
+  font-size: 0.84rem;
 }
 
 .upload-edition-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
+  padding-top: 2px;
+}
+
+.workspace-editions > .upload-edition-form-compact {
+  padding: 4px 16px 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+
+.upload-edition-fields-year {
+  grid-template-columns: minmax(140px, 180px) minmax(220px, 1fr);
+  max-width: 560px;
+}
+
+@media (max-width: 720px) {
+  .upload-edition-fields,
+  .upload-edition-fields-year {
+    grid-template-columns: 1fr;
+    max-width: none;
+  }
 }
 
 .form-card {

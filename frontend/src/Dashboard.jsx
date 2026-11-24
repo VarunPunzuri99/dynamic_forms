@@ -210,7 +210,7 @@ export default function Dashboard() {
       {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
       {message ? <p className="note note-success">{message}</p> : null}
 
-      <section className="panel-surface" style={{ marginBottom: 18 }}>
+      <section className="panel-surface upload-edition-panel">
         <div className="panel-head">
           <h2>Add form / year</h2>
           <p className="panel-sub">
