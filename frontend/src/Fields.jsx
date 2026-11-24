@@ -7,6 +7,63 @@ function errorMessage(body, fallback) {
   return body?.errors?.[0]?.message || fallback;
 }
 
+function mapQuestionRows(questions) {
+  return (questions || []).map((question) => ({
+    ...question,
+    include:
+      question.review_status === "approved"
+        ? true
+        : question.review_status === "removed"
+          ? false
+          : Boolean(question.suggested_include),
+  }));
+}
+
+/** Load live if present; else try drafts until one has imported questions. */
+async function loadEditionForReview(formId, pack) {
+  if (pack?.live?.edition_id != null) {
+    const detail = await fetch(`/api/forms/${formId}/editions/${pack.live.edition_id}`);
+    const detailBody = await detail.json();
+    if (!detail.ok) {
+      throw new Error(errorMessage(detailBody, "The fields could not be loaded"));
+    }
+    return { source: "live", detailBody, rows: mapQuestionRows(detailBody.questions) };
+  }
+
+  const drafts = [...(pack?.editions || [])]
+    .filter((row) => String(row.status || "").toLowerCase() === "draft")
+    .sort((a, b) => {
+      const aq = Number(a.question_count || a.approved_count || 0);
+      const bq = Number(b.question_count || b.approved_count || 0);
+      if (bq !== aq) return bq - aq;
+      return String(b.edition || "").localeCompare(String(a.edition || ""));
+    });
+
+  if (drafts.length === 0) {
+    throw new Error(
+      `No edition to review for ${formId}. Import fields from the PDF on Overview first.`
+    );
+  }
+
+  let lastEmpty = null;
+  for (const draft of drafts) {
+    const detail = await fetch(`/api/forms/${formId}/editions/${draft.id}`);
+    const detailBody = await detail.json();
+    if (!detail.ok) {
+      throw new Error(errorMessage(detailBody, "The fields could not be loaded"));
+    }
+    const rows = mapQuestionRows(detailBody.questions);
+    if (rows.length > 0) {
+      return { source: "draft", detailBody, rows };
+    }
+    lastEmpty = draft;
+  }
+
+  throw new Error(
+    `Edition ${lastEmpty?.edition || "?"} (id ${lastEmpty?.id}) has no questions yet. Go to Overview and click Import fields from PDF.`
+  );
+}
+
 export default function Fields({ formId }) {
   const [edition, setEdition] = useState(null);
   const [rows, setRows] = useState([]);
@@ -17,6 +74,7 @@ export default function Fields({ formId }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmGenerated, setConfirmGenerated] = useState(false);
+  const [reviewSource, setReviewSource] = useState("live");
 
   useEffect(() => {
     let cancelled = false;
@@ -25,42 +83,30 @@ export default function Fields({ formId }) {
     setRows([]);
     setRules([]);
     setSelectedKey("");
-    fetch(`/api/forms/${formId}/live`)
-      .then((response) => response.json().then((body) => ({ ok: response.ok, body })))
-      .then(async ({ ok, body }) => {
-        if (cancelled) {
-          return;
-        }
-        if (!ok) {
-          throw new Error(errorMessage(body, "The live form could not be loaded"));
-        }
-        const detail = await fetch(`/api/forms/${formId}/editions/${body.edition_id}`);
-        const detailBody = await detail.json();
-        if (!detail.ok) {
-          throw new Error(errorMessage(detailBody, "The fields could not be loaded"));
-        }
-        if (cancelled) {
-          return;
-        }
-        const nextRows = detailBody.questions.map((question) => ({
-          ...question,
-          include:
-            question.review_status === "approved"
-              ? true
-              : question.review_status === "removed"
-                ? false
-                : Boolean(question.suggested_include),
-        }));
-        setEdition(detailBody.edition);
-        setRows(nextRows);
-        setRules(detailBody.rules || []);
-        setSelectedKey(nextRows[0]?.question_key || "");
-      })
-      .catch((failure) => {
-        if (!cancelled) {
-          setLoadError(failure.message);
-        }
-      });
+    setReviewSource("live");
+
+    (async () => {
+      const packRes = await fetch(`/api/forms/${formId}/editions`);
+      const packBody = await packRes.json();
+      if (!packRes.ok) {
+        throw new Error(errorMessage(packBody, "Editions could not be loaded"));
+      }
+      if (cancelled) return;
+
+      const loaded = await loadEditionForReview(formId, packBody);
+      if (cancelled) return;
+
+      setReviewSource(loaded.source);
+      setEdition(loaded.detailBody.edition);
+      setRows(loaded.rows);
+      setRules(loaded.detailBody.rules || []);
+      setSelectedKey(loaded.rows[0]?.question_key || "");
+    })().catch((failure) => {
+      if (!cancelled) {
+        setLoadError(failure.message);
+      }
+    });
+
     return () => {
       cancelled = true;
     };
@@ -110,6 +156,9 @@ export default function Fields({ formId }) {
       <main className="page">
         <h1>Review {formId} fields</h1>
         <p className="error-banner">{loadError}</p>
+        <p className="lede">
+          <a href={`#workspace/${formId}`}>← Back to {formId} overview</a>
+        </p>
       </main>
     );
   }
@@ -119,7 +168,7 @@ export default function Fields({ formId }) {
       <main className="page page-review">
         <PageLoader
           title={`Loading ${formId} fields`}
-          detail="Fetching live edition questions for review…"
+          detail="Fetching edition questions for review…"
         />
       </main>
     );
@@ -136,7 +185,9 @@ export default function Fields({ formId }) {
           <p className="eyebrow">Reviewer</p>
           <h1>Review {formId} fields</h1>
           <p className="lede">
-            Fields imported from the live blank PDF. Select a row to confirm the highlighted box. Checked rows become employee questions; rules can hide later questions from earlier answers.
+            {reviewSource === "draft"
+              ? "Fields imported on the draft edition (not live yet). Check wording, then Approve — that publishes this edition as live for RN."
+              : "Fields from the live blank PDF. Select a row to confirm the highlighted box. Checked rows become employee questions; rules can hide later questions from earlier answers."}
           </p>
         </div>
         {edition ? (
@@ -145,6 +196,7 @@ export default function Fields({ formId }) {
               <span>Edition</span>
               <strong>
                 {edition.edition} · id {edition.id}
+                {reviewSource === "draft" ? " · draft" : " · live"}
               </strong>
             </div>
             <div className="stat">
@@ -198,7 +250,7 @@ export default function Fields({ formId }) {
           onClick={approve}
         >
           <ButtonLabel busy={busy} busyText="Saving…">
-            Approve selected fields
+            {reviewSource === "draft" ? "Approve & publish" : "Approve selected fields"}
           </ButtonLabel>
         </button>
       </div>

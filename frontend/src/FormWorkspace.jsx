@@ -77,6 +77,18 @@ export default function FormWorkspace({ formId }) {
         }
       );
       const body = await response.json();
+      // 409 = questions already exist (import already done). Not a hard failure.
+      if (response.status === 409) {
+        const raw = body?.errors?.[0]?.message || "";
+        const match = raw.match(/(\d+)\s*question/i);
+        const existing = match ? match[1] : "some";
+        setImportedByEdition((prev) => ({ ...prev, [editionId]: existing }));
+        setMessage(
+          `Import already done for edition ${editionId}: ${existing} question(s) are already saved. You do not need to import again. Next step: review/approve those questions, then Publish to make the form live. Only use "Re-import (replace)" if you want to wipe and extract again from the PDF.`
+        );
+        await reload();
+        return;
+      }
       if (!response.ok) {
         throw new Error(body?.errors?.[0]?.message || "Import fields failed");
       }
@@ -84,7 +96,7 @@ export default function FormWorkspace({ formId }) {
       const edId = body.editionId ?? body.EditionId ?? editionId;
       setImportedByEdition((prev) => ({ ...prev, [edId]: count }));
       setMessage(
-        `Success: ${count} fields were extracted from the PDF and saved on edition ${edId} as needs_review (still draft — not live yet). Next: approve questions, then Publish to make it live for the mobile app. The "0 questions" under Editions often means "0 approved" until you publish — that is normal.`
+        `Success: ${count} fields were extracted from the PDF and saved on edition ${edId} as needs_review (still draft — not live yet). Next: approve questions, then Publish to make it live for the mobile app.`
       );
       await reload();
     } catch (failure) {
@@ -212,7 +224,11 @@ export default function FormWorkspace({ formId }) {
         <a className="workspace-action" href={`#fields/${formId}`}>
           <span className="workspace-action-kicker">Reviewer</span>
           <strong>Review fields</strong>
-          <span>Approve wording and rules on the live edition.</span>
+          <span>
+            {live
+              ? "Approve wording and rules on the live edition."
+              : "Approve imported draft questions, then publish to make them live."}
+          </span>
         </a>
         <a className="workspace-action" href={`#form/${formId}`}>
           <span className="workspace-action-kicker">Employee path</span>
