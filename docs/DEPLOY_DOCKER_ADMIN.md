@@ -7,7 +7,7 @@ This matches how **TrackPro** (`~/trackpro`) runs on `HYD-WS-023`, but uses **di
 | TrackPro (existing) | `:3000` | `:8000` | `:5432` / `:5433` |
 | **Forms POC (this)** | **`:3001`** | **`:8001`** | **Not used** (C# SQL Server via APIM) |
 
-Forms POC Python does **not** need Postgres in csharp mode. It talks to C# for all form data; this container only runs fill/rules/compare helpers + `/internal/fill` for C#.
+Forms POC Python does **not** need Postgres in csharp mode. It talks to C# for all form data; this container only runs fill/rules/compare helpers + `/internal/fill` and `/internal/extract` for C#.
 
 Admin LAN IP example (update if it changes): `10.147.219.75`
 
@@ -110,6 +110,7 @@ On the office network:
 - **UI:** http://10.147.219.75:3001  
 - **API health:** http://10.147.219.75:8001/api/health  
 - **Internal fill (for C#):** http://10.147.219.75:8001/internal/fill  
+- **Internal extract (for C# import-fields):** http://10.147.219.75:8001/internal/extract  
 
 The UI nginx proxies `/api` and `/internal` to the backend, so the browser can also use:
 
@@ -159,7 +160,8 @@ For **org LAN** callers that can reach the admin PC:
 ```json
 "FormsEngine": {
   "PythonBaseUrl": "http://10.147.219.75:8001",
-  "FillPath": "/internal/fill"
+  "FillPath": "/internal/fill",
+  "ExtractPath": "/internal/extract"
 }
 ```
 

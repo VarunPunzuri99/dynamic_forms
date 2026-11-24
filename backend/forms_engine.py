@@ -10,6 +10,7 @@ import base64
 import json
 import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -615,6 +616,97 @@ def fill_pdf_for_internal_request(payload: dict) -> dict:
         "notices": notices,
         "pdf_bytes": pdf_bytes,
         "pdf_base64": base64.b64encode(pdf_bytes).decode("ascii"),
+    }
+
+
+def _pdf_bytes_from_extract_payload(payload: dict) -> bytes:
+    """Prefer inline pdf_base64 from C#; else download blank PDF via formId + editionId."""
+    raw_b64 = _pick(payload, "pdf_base64", "pdfBase64", "pdf")
+    if raw_b64:
+        text = str(raw_b64).strip()
+        if text.startswith("data:") and "," in text:
+            text = text.split(",", 1)[1]
+        try:
+            pdf_bytes = base64.b64decode(text, validate=False)
+        except Exception as exc:  # noqa: BLE001
+            raise FormsEngineError(f"pdf_base64 is not valid base64: {exc}", 400) from exc
+        if not pdf_bytes.startswith(b"%PDF"):
+            raise FormsEngineError("pdf_base64 did not decode to a PDF", 400)
+        return pdf_bytes
+
+    form_id = _pick(payload, "formId", "form_id")
+    edition_id = _pick(payload, "editionId", "edition_id")
+    if form_id and edition_id is not None:
+        path = ensure_edition_pdf_file(str(form_id), int(edition_id))
+        return path.read_bytes()
+
+    raise FormsEngineError(
+        "Provide pdf_base64, or formId + editionId so the blank PDF can be loaded",
+        400,
+    )
+
+
+def extract_questions_for_internal_request(payload: dict) -> dict:
+    """Extract AcroForm fields for C# POST /internal/extract.
+
+    C# owns persistence (FormQuestions). Python only returns question drafts.
+    """
+    if not isinstance(payload, dict):
+        raise FormsEngineError("Extract payload must be an object", 400)
+
+    form_id = _pick(payload, "formId", "form_id")
+    edition_id = _pick(payload, "editionId", "edition_id")
+    edition = _pick(payload, "edition")
+    if not form_id:
+        raise FormsEngineError("formId is required", 400)
+
+    pdf_bytes = _pdf_bytes_from_extract_payload(payload)
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as handle:
+            handle.write(pdf_bytes)
+            tmp_path = Path(handle.name)
+        extracted = widgets(tmp_path)
+    finally:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    if not extracted:
+        raise FormsEngineError("No fillable fields were found in that PDF", 400)
+
+    seen: set[str] = set()
+    questions: list[dict] = []
+    for order, row in enumerate(extracted, start=1):
+        question_key = row["name"] or f"field-{order}"
+        if question_key in seen:
+            question_key = f"{question_key}#{order}"
+        seen.add(question_key)
+        label = (row.get("label") or "").strip() or question_key
+        questions.append(
+            {
+                "questionKey": question_key,
+                "label": label,
+                "inputType": input_type(row["type"]),
+                "required": False,
+                "pdfField": row["name"] or None,
+                "checkedValue": row.get("checked_value"),
+                "optionsJson": None,
+                "pageNumber": row.get("page"),
+                "sortOrder": order,
+                "changeType": "new",
+                "labelSource": "pdf",
+            }
+        )
+
+    return {
+        "formId": str(form_id),
+        "editionId": int(edition_id) if edition_id is not None else None,
+        "edition": str(edition) if edition is not None else None,
+        "questions": questions,
+        "importedCount": len(questions),
     }
 
 

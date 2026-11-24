@@ -218,6 +218,9 @@ export default function EmployeeForm({ formId }) {
       <BusyOverlay active={busy} label={busyLabel || "Working…"} />
       <header className="page-head page-head-compact">
         <div className="page-head-copy">
+          <a className="back-link" href={`#workspace/${formId}`}>
+            ← {formId} overview
+          </a>
           <p className="eyebrow">Employee fill</p>
           <h1>
             {formTitle}

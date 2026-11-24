@@ -24,11 +24,14 @@ from backend.filler import (
 )
 from backend.forms_engine import (
     FormsEngineError,
+    extract_questions_for_internal_request,
     fill_pdf_for_internal_request,
     resolve_blank_pdf,
     upload_completed_pdf_for_definition,
     uses_csharp,
 )
+from backend import csharp_client
+from backend.csharp_client import CsharpApiError
 from backend.store import (
     ReviewError,
     approve_draft,
@@ -48,7 +51,6 @@ from backend.store import (
     sample_answers_for_live,
     use_reviewed_wording,
 )
-from backend import csharp_client
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFINITION_PATH = ROOT / "forms" / "fw4_2026_questions.json"
@@ -161,6 +163,53 @@ async def internal_fill(
             "formId": result["form_id"],
             "editionId": result["edition_id"],
             "edition": result["edition"],
+        }
+    )
+
+
+@app.post("/internal/extract")
+async def internal_extract(
+    request: Request,
+    x_api_key: str | None = Header(default=None, alias="X-Api-Key"),
+    authorization: str | None = Header(default=None),
+) -> JSONResponse:
+    """C# orchestration extract endpoint. Returns questions[]; C# owns FormQuestions write."""
+    if not _internal_fill_authorized(x_api_key, authorization):
+        return JSONResponse(
+            status_code=401,
+            content={"errors": [{"id": "", "message": "Unauthorized extract request"}]},
+        )
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse(
+            status_code=400,
+            content={"errors": [{"id": "", "message": "Request body must be JSON"}]},
+        )
+    if not isinstance(payload, dict):
+        return JSONResponse(
+            status_code=400,
+            content={"errors": [{"id": "", "message": "Request body must be an object"}]},
+        )
+    try:
+        result = extract_questions_for_internal_request(payload)
+    except FormsEngineError as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"errors": [{"id": "", "message": exc.message}]},
+        )
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse(
+            status_code=500,
+            content={"errors": [{"id": "", "message": f"The PDF fields could not be extracted: {exc}"}]},
+        )
+    return JSONResponse(
+        content={
+            "questions": result["questions"],
+            "formId": result.get("formId"),
+            "editionId": result.get("editionId"),
+            "edition": result.get("edition"),
+            "importedCount": result.get("importedCount"),
         }
     )
 
@@ -377,6 +426,30 @@ def import_fields(form_id: str):
         return import_live_fields(form_id)
     except ReviewError as exc:
         return _review_error(exc)
+
+
+@app.post("/api/forms/{form_id}/editions/{edition_id}/import-fields")
+async def import_edition_fields(form_id: str, edition_id: int, request: Request):
+    """Studio → C# import-fields (C# calls Python /internal/extract). Works on draft editions."""
+    replace = False
+    try:
+        body = await request.json()
+        if isinstance(body, dict):
+            replace = bool(body.get("replace"))
+    except Exception:
+        replace = False
+    try:
+        return csharp_client.import_edition_fields(form_id, edition_id, replace=replace)
+    except CsharpApiError as exc:
+        return JSONResponse(
+            status_code=exc.status_code or 502,
+            content={"errors": [{"id": "", "message": exc.message}]},
+        )
+    except FormsEngineError as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"errors": [{"id": "", "message": exc.message}]},
+        )
 
 
 @app.post("/api/forms/{form_id}/editions/{edition_id}/publish")

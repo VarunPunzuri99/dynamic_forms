@@ -130,6 +130,9 @@ export default function Fields({ formId }) {
       <BusyOverlay active={busy} label="Saving approved fields and rules…" />
       <header className="page-head">
         <div className="page-head-copy">
+          <a className="back-link" href={`#workspace/${formId}`}>
+            ← {formId} overview
+          </a>
           <p className="eyebrow">Reviewer</p>
           <h1>Review {formId} fields</h1>
           <p className="lede">

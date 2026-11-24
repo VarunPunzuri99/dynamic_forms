@@ -162,6 +162,17 @@ def publish_edition(form_id: str, edition_id: int, confirm: bool = True) -> dict
         return response.json() if response.content else {}
 
 
+def import_edition_fields(form_id: str, edition_id: int, *, replace: bool = False) -> dict:
+    """POST .../editions/{editionId}/import-fields — C# extract orchestration (calls Python /internal/extract)."""
+    with _client(timeout=PDF_TIMEOUT) as client:
+        response = client.post(
+            f"/api/forms-engine/forms/{form_id}/editions/{edition_id}/import-fields",
+            json={"replace": bool(replace)},
+        )
+        _raise_for_response(response)
+        return response.json() if response.content else {}
+
+
 def upload_completed_pdf(
     form_id: str,
     edition_id: int,
