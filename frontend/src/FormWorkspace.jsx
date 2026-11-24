@@ -26,6 +26,8 @@ export default function FormWorkspace({ formId }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busyAction, setBusyAction] = useState("");
+  /** editionId → last successful import count (editions list often lags / shows approved-only). */
+  const [importedByEdition, setImportedByEdition] = useState({});
 
   async function reload() {
     const [formsResult, editionsResult] = await Promise.all([
@@ -78,8 +80,11 @@ export default function FormWorkspace({ formId }) {
       if (!response.ok) {
         throw new Error(body?.errors?.[0]?.message || "Import fields failed");
       }
+      const count = body.importedCount ?? body.ImportedCount ?? "?";
+      const edId = body.editionId ?? body.EditionId ?? editionId;
+      setImportedByEdition((prev) => ({ ...prev, [edId]: count }));
       setMessage(
-        `Imported ${body.importedCount ?? "?"} fields on edition ${body.editionId ?? editionId} (${body.status || "draft"}). Review, then publish.`
+        `Success: ${count} fields were extracted from the PDF and saved on edition ${edId} as needs_review (still draft — not live yet). Next: approve questions, then Publish to make it live for the mobile app. The "0 questions" under Editions often means "0 approved" until you publish — that is normal.`
       );
       await reload();
     } catch (failure) {
@@ -235,7 +240,9 @@ export default function FormWorkspace({ formId }) {
                   {edition.is_live ? "Live" : edition.status || "—"}
                 </span>
                 <span className="edition-count">
-                  {edition.approved_count ?? edition.question_count ?? 0} questions
+                  {importedByEdition[edition.id] != null
+                    ? `${importedByEdition[edition.id]} imported (needs review)`
+                    : `${edition.approved_count ?? edition.question_count ?? 0} approved`}
                 </span>
                 <div className="catalog-actions">
                   <button
