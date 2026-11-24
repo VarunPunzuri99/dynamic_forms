@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { BusyOverlay, PageLoader, StatusBanner } from "./LoadingUI";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BusyOverlay, ButtonLabel, PageLoader, StatusBanner } from "./LoadingUI";
 
 function titleCaseForm(formId, displayName) {
   if (displayName && displayName !== formId) return displayName;
@@ -25,48 +25,53 @@ function statusLabel(edition) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+const FORM_ID_RE = /^[a-z0-9][a-z0-9_-]{1,63}$/;
+
 export default function Dashboard() {
   const [forms, setForms] = useState([]);
   const [packs, setPacks] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [busyLabel, setBusyLabel] = useState("");
+  const [newFormId, setNewFormId] = useState("");
+  const [newEdition, setNewEdition] = useState("");
+  const [newFile, setNewFile] = useState(null);
+
+  const loadCatalog = useCallback(async () => {
+    const response = await fetch("/api/forms");
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body?.errors?.[0]?.message || "Forms could not be loaded");
+    }
+    const list = Array.isArray(body) ? body : [];
+    setForms(list);
+    setBusyLabel("Loading editions…");
+    const entries = await Promise.all(
+      list.map(async (form) => {
+        try {
+          const edRes = await fetch(`/api/forms/${form.form_id}/editions`);
+          const pack = await edRes.json();
+          if (!edRes.ok) {
+            return [
+              form.form_id,
+              { editions: [], live: form.live || null, error: pack?.errors?.[0]?.message },
+            ];
+          }
+          return [form.form_id, pack];
+        } catch (failure) {
+          return [form.form_id, { editions: [], live: form.live || null, error: failure.message }];
+        }
+      })
+    );
+    setPacks(Object.fromEntries(entries));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError("");
-    fetch("/api/forms")
-      .then((response) => response.json().then((body) => ({ ok: response.ok, body })))
-      .then(async ({ ok, body }) => {
-        if (cancelled) return;
-        if (!ok) {
-          throw new Error(body?.errors?.[0]?.message || "Forms could not be loaded");
-        }
-        const list = Array.isArray(body) ? body : [];
-        setForms(list);
-        setBusyLabel("Loading editions…");
-        const entries = await Promise.all(
-          list.map(async (form) => {
-            try {
-              const response = await fetch(`/api/forms/${form.form_id}/editions`);
-              const pack = await response.json();
-              if (!response.ok) {
-                return [
-                  form.form_id,
-                  { editions: [], live: form.live || null, error: pack?.errors?.[0]?.message },
-                ];
-              }
-              return [form.form_id, pack];
-            } catch (failure) {
-              return [form.form_id, { editions: [], live: form.live || null, error: failure.message }];
-            }
-          })
-        );
-        if (!cancelled) {
-          setPacks(Object.fromEntries(entries));
-        }
-      })
+    loadCatalog()
       .catch((failure) => {
         if (!cancelled) setError(failure.message || "Forms could not be loaded");
       })
@@ -79,7 +84,55 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadCatalog]);
+
+  async function createEdition(event) {
+    event.preventDefault();
+    const formId = newFormId.trim().toLowerCase();
+    const edition = newEdition.trim();
+    if (!FORM_ID_RE.test(formId)) {
+      setError("Form id must be lowercase letters, numbers, _ or - (2–64 chars).");
+      return;
+    }
+    if (!edition) {
+      setError("Edition / year is required (e.g. 2027).");
+      return;
+    }
+    if (!newFile) {
+      setError("Choose a blank fillable PDF.");
+      return;
+    }
+
+    setBusyLabel("Uploading blank PDF…");
+    setError("");
+    setMessage("");
+    try {
+      const data = new FormData();
+      data.append("edition", edition);
+      data.append("file", newFile, newFile.name || `${formId}_${edition}.pdf`);
+      const response = await fetch(`/api/forms/${encodeURIComponent(formId)}/editions`, {
+        method: "POST",
+        body: data,
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.errors?.[0]?.message || "Could not create edition");
+      }
+      const editionId = body.editionId ?? body.EditionId ?? body.edition_id;
+      setMessage(
+        `Draft ${formId} / ${edition} created (id ${editionId}). Open the form and click Import fields from PDF.`
+      );
+      setNewFormId("");
+      setNewEdition("");
+      setNewFile(null);
+      await loadCatalog();
+      window.location.hash = `#workspace/${formId}`;
+    } catch (failure) {
+      setError(failure.message || "Could not create edition");
+    } finally {
+      setBusyLabel("");
+    }
+  }
 
   const stats = useMemo(() => {
     const liveCount = forms.filter((form) => form.live).length;
@@ -104,7 +157,6 @@ export default function Dashboard() {
           String(b.edition || "").localeCompare(String(a.edition || ""))
         );
         const liveEdition = sorted.find((edition) => edition.is_live) || live;
-        // Prefer approved question count (not total imported / all questions)
         const approvedCount =
           liveEdition?.approved_count ??
           live?.approved_count ??
@@ -136,7 +188,7 @@ export default function Dashboard() {
           <h1>All forms &amp; years</h1>
           <p className="lede">
             Open a form to fill the live edition, compare another year, or review fields.
-            Publish from Compare when a draft should become live.
+            Add a new form or year by uploading a blank PDF (registers on first draft edition).
           </p>
         </div>
         <div className="dashboard-hero-stats" aria-label="Catalog summary">
@@ -156,12 +208,65 @@ export default function Dashboard() {
       </div>
 
       {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+      {message ? <p className="note note-success">{message}</p> : null}
+
+      <section className="panel-surface" style={{ marginBottom: 18 }}>
+        <div className="panel-head">
+          <h2>Add form / year</h2>
+          <p className="panel-sub">
+            Creates a draft edition + blank PDF in Blob. Does not extract fields — import next.
+          </p>
+        </div>
+        <form className="upload-edition-form" onSubmit={createEdition}>
+          <div className="upload-edition-fields">
+            <label>
+              Form id
+              <input
+                type="text"
+                value={newFormId}
+                onChange={(event) => setNewFormId(event.target.value)}
+                placeholder="e.g. demo_tax"
+                autoComplete="off"
+                disabled={Boolean(busyLabel)}
+              />
+            </label>
+            <label>
+              Edition / year
+              <input
+                type="text"
+                value={newEdition}
+                onChange={(event) => setNewEdition(event.target.value)}
+                placeholder="e.g. 2027"
+                autoComplete="off"
+                disabled={Boolean(busyLabel)}
+              />
+            </label>
+            <label>
+              Blank PDF
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={(event) => setNewFile(event.target.files?.[0] || null)}
+                disabled={Boolean(busyLabel)}
+              />
+            </label>
+          </div>
+          <div className="upload-edition-actions">
+            <button type="submit" className="button-link primary" disabled={Boolean(busyLabel)}>
+              <ButtonLabel busy={Boolean(busyLabel)} busyText="Uploading…">
+                Upload draft edition
+              </ButtonLabel>
+            </button>
+          </div>
+        </form>
+      </section>
 
       {!forms.length && !error ? (
         <div className="dashboard-empty panel-surface">
           <h2>No forms yet</h2>
           <p className="lede">
-            When FormsEngine lists forms (for example fw4 or colorado), they will appear here.
+            Upload a blank PDF above to register the first form, or wait until FormsEngine lists
+            existing forms (for example fw4 or colorado).
           </p>
         </div>
       ) : (

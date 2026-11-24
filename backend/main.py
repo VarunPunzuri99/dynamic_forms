@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, Header, Request
+from fastapi import FastAPI, File, Form, Header, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -429,6 +429,88 @@ def import_fields(form_id: str):
         return _review_error(exc)
 
 
+def _csharp_http_error(exc: CsharpApiError) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code or 502,
+        content={"errors": [{"id": "", "message": exc.message}]},
+    )
+
+
+@app.post("/api/forms/{form_id}/editions")
+async def create_form_edition(
+    form_id: str,
+    edition: str = Form(...),
+    file: UploadFile = File(...),
+):
+    """Studio → C# create draft edition + blank PDF Blob (multipart).
+
+    First edition for a formId registers the form on GET /forms. Does not extract or publish.
+    """
+    pdf_bytes = await file.read()
+    if not pdf_bytes:
+        return JSONResponse(
+            status_code=400,
+            content={"errors": [{"id": "", "message": "PDF file is empty"}]},
+        )
+    if not pdf_bytes.startswith(b"%PDF"):
+        return JSONResponse(
+            status_code=400,
+            content={"errors": [{"id": "", "message": "File must be a PDF"}]},
+        )
+    filename = file.filename or f"{form_id}_{edition}.pdf"
+    try:
+        return await asyncio.to_thread(
+            csharp_client.create_edition,
+            form_id,
+            edition,
+            pdf_bytes,
+            filename,
+        )
+    except CsharpApiError as exc:
+        return _csharp_http_error(exc)
+    except FormsEngineError as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"errors": [{"id": "", "message": exc.message}]},
+        )
+
+
+@app.put("/api/forms/{form_id}/editions/{edition_id}/blank-pdf")
+async def replace_edition_blank_pdf(
+    form_id: str,
+    edition_id: int,
+    file: UploadFile = File(...),
+):
+    """Studio → C# replace blank PDF on an existing draft (questions left as-is)."""
+    pdf_bytes = await file.read()
+    if not pdf_bytes:
+        return JSONResponse(
+            status_code=400,
+            content={"errors": [{"id": "", "message": "PDF file is empty"}]},
+        )
+    if not pdf_bytes.startswith(b"%PDF"):
+        return JSONResponse(
+            status_code=400,
+            content={"errors": [{"id": "", "message": "File must be a PDF"}]},
+        )
+    filename = file.filename or f"{form_id}_{edition_id}.pdf"
+    try:
+        return await asyncio.to_thread(
+            csharp_client.replace_blank_pdf,
+            form_id,
+            edition_id,
+            pdf_bytes,
+            filename,
+        )
+    except CsharpApiError as exc:
+        return _csharp_http_error(exc)
+    except FormsEngineError as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"errors": [{"id": "", "message": exc.message}]},
+        )
+
+
 @app.post("/api/forms/{form_id}/editions/{edition_id}/import-fields")
 async def import_edition_fields(form_id: str, edition_id: int, request: Request):
     """Studio → C# import-fields (C# calls Python /internal/extract). Works on draft editions.
@@ -451,10 +533,7 @@ async def import_edition_fields(form_id: str, edition_id: int, request: Request)
             replace=replace,
         )
     except CsharpApiError as exc:
-        return JSONResponse(
-            status_code=exc.status_code or 502,
-            content={"errors": [{"id": "", "message": exc.message}]},
-        )
+        return _csharp_http_error(exc)
     except FormsEngineError as exc:
         return JSONResponse(
             status_code=exc.status_code,

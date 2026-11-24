@@ -28,6 +28,8 @@ export default function FormWorkspace({ formId }) {
   const [busyAction, setBusyAction] = useState("");
   /** editionId → last successful import count (editions list often lags / shows approved-only). */
   const [importedByEdition, setImportedByEdition] = useState({});
+  const [newEdition, setNewEdition] = useState("");
+  const [newFile, setNewFile] = useState(null);
 
   async function reload() {
     const [formsResult, editionsResult] = await Promise.all([
@@ -62,6 +64,46 @@ export default function FormWorkspace({ formId }) {
       cancelled = true;
     };
   }, [formId]);
+
+  async function addYear(event) {
+    event.preventDefault();
+    const edition = newEdition.trim();
+    if (!edition) {
+      setError("Edition / year is required (e.g. 2027).");
+      return;
+    }
+    if (!newFile) {
+      setError("Choose a blank fillable PDF.");
+      return;
+    }
+    setBusyAction("upload");
+    setError("");
+    setMessage("");
+    try {
+      const data = new FormData();
+      data.append("edition", edition);
+      data.append("file", newFile, newFile.name || `${formId}_${edition}.pdf`);
+      const response = await fetch(`/api/forms/${encodeURIComponent(formId)}/editions`, {
+        method: "POST",
+        body: data,
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.errors?.[0]?.message || "Could not create edition");
+      }
+      const editionId = body.editionId ?? body.EditionId ?? body.edition_id;
+      setMessage(
+        `Draft edition ${edition} created (id ${editionId}). Next: Import fields from PDF, then review and publish.`
+      );
+      setNewEdition("");
+      setNewFile(null);
+      await reload();
+    } catch (failure) {
+      setError(failure.message || "Could not create edition");
+    } finally {
+      setBusyAction("");
+    }
+  }
 
   async function importFields(editionId, replace = false) {
     setBusyAction("import");
@@ -129,7 +171,9 @@ export default function FormWorkspace({ formId }) {
           label={
             busyAction === "import"
               ? "Importing fields from PDF…"
-              : "Publishing edition…"
+              : busyAction === "upload"
+                ? "Uploading blank PDF…"
+                : "Working…"
           }
         />
       ) : null}
@@ -242,8 +286,39 @@ export default function FormWorkspace({ formId }) {
           <h2>Editions / years</h2>
           <p className="panel-sub">Import fields on a draft, then publish when ready</p>
         </div>
+        <form className="upload-edition-form" onSubmit={addYear}>
+          <div className="upload-edition-fields">
+            <label>
+              New edition / year
+              <input
+                type="text"
+                value={newEdition}
+                onChange={(event) => setNewEdition(event.target.value)}
+                placeholder="e.g. 2027"
+                autoComplete="off"
+                disabled={Boolean(busyAction)}
+              />
+            </label>
+            <label>
+              Blank PDF
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={(event) => setNewFile(event.target.files?.[0] || null)}
+                disabled={Boolean(busyAction)}
+              />
+            </label>
+          </div>
+          <div className="upload-edition-actions">
+            <button type="submit" className="button-link primary" disabled={Boolean(busyAction)}>
+              <ButtonLabel busy={busyAction === "upload"} busyText="Uploading…">
+                Add year + upload PDF
+              </ButtonLabel>
+            </button>
+          </div>
+        </form>
         {editions.length === 0 ? (
-          <p className="lede">No editions found for this form.</p>
+          <p className="lede">No editions found for this form yet. Upload a blank PDF above.</p>
         ) : (
           <ul className="edition-table">
             {editions.map((edition) => (

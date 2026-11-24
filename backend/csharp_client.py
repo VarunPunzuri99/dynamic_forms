@@ -173,6 +173,42 @@ def import_edition_fields(form_id: str, edition_id: int, *, replace: bool = Fals
         return response.json() if response.content else {}
 
 
+def create_edition(
+    form_id: str,
+    edition: str,
+    pdf_bytes: bytes,
+    filename: str = "blank.pdf",
+) -> dict:
+    """POST .../forms/{formId}/editions — draft row + blank PDF Blob (multipart)."""
+    files = {"file": (filename, pdf_bytes, "application/pdf")}
+    data = {"edition": str(edition).strip()}
+    with _client(timeout=PDF_TIMEOUT) as client:
+        response = client.post(
+            f"/api/forms-engine/forms/{form_id}/editions",
+            files=files,
+            data=data,
+        )
+        _raise_for_response(response)
+        return response.json() if response.content else {}
+
+
+def replace_blank_pdf(
+    form_id: str,
+    edition_id: int,
+    pdf_bytes: bytes,
+    filename: str = "blank.pdf",
+) -> dict:
+    """PUT .../editions/{editionId}/blank-pdf — overwrite blank PDF on a draft."""
+    files = {"file": (filename, pdf_bytes, "application/pdf")}
+    with _client(timeout=PDF_TIMEOUT) as client:
+        response = client.put(
+            f"/api/forms-engine/forms/{form_id}/editions/{edition_id}/blank-pdf",
+            files=files,
+        )
+        _raise_for_response(response)
+        return response.json() if response.content else {}
+
+
 def upload_completed_pdf(
     form_id: str,
     edition_id: int,
