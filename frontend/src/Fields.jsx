@@ -126,7 +126,13 @@ export default function Fields({ formId }) {
     setError("");
     setMessage("");
     try {
-      const response = await fetch(`/api/forms/${formId}/editions/${edition.id}/approve`, {
+      // approve = save checked questions on the edition (stays draft).
+      // publish = save + set status approved + is_live (required for /live).
+      const endpoint =
+        reviewSource === "draft"
+          ? `/api/forms/${formId}/editions/${edition.id}/publish`
+          : `/api/forms/${formId}/editions/${edition.id}/approve`;
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,9 +147,16 @@ export default function Fields({ formId }) {
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(errorMessage(body, "The fields could not be approved"));
+        throw new Error(
+          errorMessage(
+            body,
+            reviewSource === "draft"
+              ? "The edition could not be published"
+              : "The fields could not be approved"
+          )
+        );
       }
-      window.location.hash = `#form/${formId}`;
+      window.location.hash = `#workspace/${formId}`;
     } catch (failure) {
       setError(failure.message);
     } finally {
